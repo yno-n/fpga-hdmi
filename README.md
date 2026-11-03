@@ -1,43 +1,104 @@
-# FPGA HDMI / TF Card Project
+# 2026 年 FPGA 创新设计竞赛（安路科技赛区）
 
-FPGA project for the Anlogic EG4S20BG256, including TF/SD card access,
-SDRAM buffering, HDMI output, video processing, OSD, audio, and key control.
+## 基于安路 FPGA 的 HDMI 多媒体展示系统
 
-## Project Layout
+本项目围绕安路科技选题一“基于安路 FPGA 的 HDMI 多媒体展示系统”展开，使用 `EG4S20BG256` 实现 TF 卡媒体读取、SDRAM 帧缓存、HDMI 音视频输出，以及转场、画面调节、OSD 和音频可视化等功能。
 
-- `sources/`: RTL modules, memory initialization data, Python generators,
-  and module-level testbenches.
-- `td6.2.2prj/EG4_SD_HDMI.al`: Anlogic TD project entry point.
-- `td6.2.2prj/constraint/`: pin assignments and timing constraints.
-- `td6.2.2prj/al_ip/`: generated IP wrappers, RTL, and configuration files.
+项目技术说明中的作品名称为“基于 EG4S20 的 TF 卡 HDMI 图像显示与特效处理系统”。本仓库公开当前工程源码与配置，便于查看设计结构、复现工程和对照赛题，不是赛事或安路科技官方仓库。
 
-## Opening the Project
+## 赛题背景与资料依据
 
-1. Install Anlogic TD with EG4 device support. The project records TD
-   version `6.2.190657` (6.2.2).
-2. Open `td6.2.2prj/EG4_SD_HDMI.al` in TD. If TD asks for the project
-   location, select the local `td6.2.2prj` directory.
-3. Confirm device `EG4S20BG256` and top module `EG4_SD_HDMI_SUBSYSTOP`.
-4. Check the pin constraints against your board before synthesis and
-   implementation.
+本说明对照本地《FPGA 创新设计竞赛赛题解析：安路赛道——选题一》（封面日期 `2026.09.05`）及项目技术说明整理。
 
-The current RTL selects `640x480@60`. Changing the HDMI timing parameter
-also requires matching pixel and serializer clocks; see the comments in
-`sources/sd_ctrl/EG4_SD_HDMI_SUBSYSTOP.v`.
+- 选题名称：基于安路 FPGA 的 HDMI 多媒体展示系统。
+- 赛题指定开发板：`HX4S20C`；核心器件为安路 `EG4S20BG256`。
+- 基础要求：TF 卡 BMP 图片读取与 HDMI 显示、图片切换与轮播、48 kHz HDMI 音频输出，以及固化后上电运行。
+- 扩展方向：图层与字幕叠加、转场特效、图片缩放适配、实时参数调节与信息叠加、音频可视化。
+- 赛题解析所列下载入口：[FPGA 创新设计竞赛赛题资料](http://www.fpgachina.cn/download?value=11)。具体要求及后续更新以赛事发布资料为准。
 
-## Publication Scope
+## 赛题要求与当前工程对照
 
-This repository is a snapshot of the current local project, not its old
-Git history. Build output, logs, caches, local debugger state, backup files,
-and the outer document, image, and music folders are not included.
-TF/SD card media must be prepared separately.
+下表说明源码中的对应设计及验证边界，不等同于“全部要求已通过验收”。
 
-This publication does not establish a new successful build or hardware
-test. Use the supplied project and the appropriate vendor tools to verify
-it for your target board.
+| 类别 | 赛题要求 | 当前工程对应设计与说明 |
+| --- | --- | --- |
+| 基础 1 | TF 卡读取 640×480、24-bit RGB 非压缩 BMP，经 SDRAM 缓存后 HDMI 显示 | `SDCARD_BMP_READ`、`EG4_SDRAM_TOP`、`HDMI_DRIVER_TOP` 等构成显示链路；赛题写明 SPI 接口，当前代码为 SD 原生四线模式，存在接口实现差异，是否接受需向赛事方确认。 |
+| 基础 2 | 按键手动切换与自动轮播，连续稳定显示 | 顶层接入矩阵键盘、拨码开关与换图控制；稳定性、闪烁和连续运行效果仍须实板验收。 |
+| 基础 3 | 48 kHz HDMI 音频输出与音视频同步播放 | `SDCARD_AUDIO_READ`、`AUDIO_ARC_TOP` 与 HDMI 发送核构成音频通路，发送核配置为 `48K`；当前路径读取卡内音频，不据此宣称已完成规定测试音及同步播放验收。 |
+| 基础 4 | 设计固化到开发板，上电即可运行 | 本仓库提供工程源码与配置，未发布固化镜像；仍需在指定开发板上完成 Flash 固化、断电重启与脱离 PC 测试。 |
+| 扩展 1 | 图层叠加与字幕效果 | `VPU_OSD`、台标 ROM 与文字初始化数据提供台标、文字叠加及滚动相关设计。 |
+| 扩展 2 | 图片切换与转场特效 | `VPU_CUT_TO` 提供多种几何转场，使用双路图像数据参与合成；不将其描述为已实现淡入淡出。 |
+| 扩展 3 | 不同分辨率图片读取与缩放适配 | 仓库保留 `VPU_Scaler`，但其仅实现水平缩放，且在 `VPU_SUBSYS_TOP` 中的实例已注释，当前主链路未启用；不计作已完成的完整缩放适配。 |
+| 扩展 4 | 实时调节显示参数并叠加参数信息 | `VPU_display_effect`、`VPU_style`、`VPU_MENU` 提供亮度、对比度、色温、色调、画面风格与菜单控制。 |
+| 扩展 5 | 音频波形或频谱可视化 | `VPU_audio_wave` 接入视频流水线，包含波形及 64 柱频谱设计；频谱采用 Goertzel 计算，不是 FFT 实现。 |
 
-## Third-Party Files
+以上按源码连接关系整理；最终演示效果、赛题接口合规性及完成项数，应以实板测试和赛事评测为准。
 
-Anlogic-generated IP and other third-party files retain their existing
-copyright notices and applicable terms. No additional license is granted
-by this repository.
+## 系统结构
+
+```text
+TF/SD card -> index / BMP decode -> SDRAM frame buffers
+                                         |
+                                current / next frame
+                                         |
+                            transition -> color -> style
+                                         |
+TF/SD card -> audio decode ----> audio visualization
+                  |                      |
+                  |                  OSD -> menu
+                  |                      |
+                  +--------------> HDMI audio / video out
+
+Matrix keys / switches -> picture, audio and menu control
+```
+
+设计以硬件状态机、FIFO、跨时钟域同步与像素流水线组织各功能，不依赖软核处理器或操作系统。当前主视频链路未启用缩放级。
+
+## 工程配置
+
+| 项目 | 当前配置 |
+| --- | --- |
+| FPGA 器件 | Anlogic `EG4S20BG256` |
+| 开发工具 | Tang Dynasty / 安路 TD `6.2.190657`（6.2.2） |
+| 工程入口 | [`td6.2.2prj/EG4_SD_HDMI.al`](td6.2.2prj/EG4_SD_HDMI.al) |
+| 顶层模块 | `EG4_SD_HDMI_SUBSYSTOP` |
+| 板载输入时钟 | 50 MHz |
+| PLL 输出 | 50 MHz、150 MHz、150 MHz（180° 相移）、25 MHz、125 MHz |
+| 当前显示模式参数 | `HDMI_VIDEO_MODE = "640x480@60"` |
+| 实际像素时钟 | 25 MHz；按 800×525 行场总数计算，刷新率约 59.52 Hz，不是精确 60 Hz |
+| SDRAM | 器件合封 2M×32 bit，容量 8 MB |
+| TF 卡接口 | SD 原生四线模式，非 SPI 模式 |
+| 交互控制 | 4×4 矩阵键盘、拨码开关、屏上参数菜单 |
+
+顶层保留其他 HDMI 时序参数选项，但更改 `HDMI_VIDEO_MODE` 不会自动修改 PLL。使用其他分辨率前，必须同步配置像素时钟、串行时钟并重新验证完整链路，不能据此宣称已支持所有列出的显示模式。
+
+## 目录说明
+
+| 路径 | 内容 |
+| --- | --- |
+| [`sources/sd_ctrl/`](sources/sd_ctrl/) | SD 卡初始化、四线接口、固定索引、BMP 与音频读取 |
+| [`sources/eg4_sdram_ctrl/`](sources/eg4_sdram_ctrl/) | SDRAM 调度、图像写入、双路读出与换图控制 |
+| [`sources/video_gen/`](sources/video_gen/) | HDMI 显示时序与视频输出接口 |
+| [`sources/video_processor/`](sources/video_processor/) | 转场、色彩、风格、音频可视化、OSD、菜单及未启用的缩放模块 |
+| [`sources/audio/`](sources/audio/) | 音频采样输出与 HDMI 音频时钟再生相关逻辑 |
+| [`sources/key/`](sources/key/) | 矩阵键盘扫描、消抖与跨时钟域同步 |
+| [`sources/osd/`](sources/osd/) | 台标、字幕初始化数据、生成脚本与相关测试平台 |
+| [`td6.2.2prj/constraint/`](td6.2.2prj/constraint/) | 引脚分配与时序约束 |
+| [`td6.2.2prj/al_ip/`](td6.2.2prj/al_ip/) | PLL、FIFO、ROM、DSP 等 IP 配置与生成文件 |
+
+## 打开与验证工程
+
+1. 安装支持 EG4 系列器件的安路 TD，建议使用工程记录的 6.2.2 版本。
+2. 下载或克隆本仓库，在 TD 中打开 `td6.2.2prj/EG4_SD_HDMI.al`。如提示工程位置变更，选择本地 `td6.2.2prj` 目录。
+3. 核对目标器件、顶层模块、当前激活的引脚约束及实际板卡接口，不能仅凭器件型号相同就直接下载到其他板卡。
+4. 另行准备符合当前索引格式的 TF 卡媒体。代码采用固定索引寻址，`SDCARD_INDEX_READ.v` 中的 `INDEX_START_SD_ADDR` 当前为 `40992`；普通复制 BMP/WAV 文件不等同于完成制卡。
+5. 在 TD 中重新完成综合、布局布线和时序分析，再进行下载、图像切换、字幕、菜单、音频及长时间运行测试。
+6. 按赛题要求，将最终集成设计固化至指定开发板，验证断电重启后无需 PC 下载即可运行。
+
+本次公开发布及文档更新未重新执行完整综合、时序分析或实板测试，不将技术说明中的历史资源与时序数据当作当前重新验证的结果。仓库中的局部测试平台也不能替代全系统验收。
+
+## 发布范围与版权
+
+本仓库保留当前工程源码、工程配置、必要 IP、初始化数据和说明文档，不包含旧 Git 历史、综合与布局布线缓存、日志、调试状态、备份文件，以及外层报告、赛题课件、图片素材和音乐目录。TF 卡媒体、制卡工具与固化镜像不在本次发布范围内。
+
+赛题与技术说明仅用于整理本页说明，原始文档未随仓库发布。安路生成 IP 和其他第三方文件保留原有版权声明及适用条款；本仓库不额外授予第三方内容的使用或再分发许可，也不代表赛事或安路科技背书。
