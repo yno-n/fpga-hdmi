@@ -1,0 +1,16 @@
+# Anlogic TD build output and local debugger state
+/td6.2.2prj/EG4_SD_HDMI_Runs/
+/td6.2.2prj/log/
+/td6.2.2prj/chip_debugger/
+.lock.f
+*.log
+*.logw
+*.bak
+
+# Python cache and editor files
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
